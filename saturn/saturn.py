@@ -47,6 +47,8 @@ class Saturn(object):
         parser.add_argument('-f', '--filename', dest='filename', nargs='?',
                             help='Data file to use. Default: {}'.format(self.default_data_file),
                             default=self.default_data_file)
+        parser.add_argument('--update_urns', action='store_true', dest='update_urns',
+                            help='Update URNs to match template.')
         parser.add_argument('action', nargs=1, help='Action ("init", "add" or "verify")')
         parser.add_argument('records', nargs='*', help='Records to add or verify')
 
@@ -69,7 +71,7 @@ class Saturn(object):
             if len(args.records) > 0:
                 try:
                     self.add_record(args.records[0])
-                    self.update_record(args.records[0])
+                    self.update_record(args.records[0], args.update_urns)
                 except HTTPError as err:
                     print(err.response.text)
                     if err.response.status_code == 400:
@@ -80,7 +82,7 @@ class Saturn(object):
             return
 
         if action == 'validate':
-            self.validate_records()
+            self.validate_records(args.update_urns)
             return
 
         print('Unknown action "%s", try saturn -h' % args.action)
@@ -96,7 +98,7 @@ class Saturn(object):
         self.table.add(mms_id)
         log.info('Added %s to data table', mms_id)
 
-    def update_record(self, mms_id):
+    def update_record(self, mms_id, update_urns):
         """
         Validate an existing record in our database and create an URN for it none exist yet.
 
@@ -126,26 +128,38 @@ class Saturn(object):
             row['urn'] = self.get_urn(bib, row['url'])
             self.table.save()  # Save after each URN so we don't loose an URN if the MARC update fails
 
-        self.check_urn(row['urn'], row['url'] )
+        self.check_urn_target(row['urn'], row['url'], update_urns)
 
         # Add URN to either the network zone record or the institution zone record, if no NZ record is present.
         self.add_urn_to_marc_record(bib, row['urn'])
 
         self.table.save()  # Save after each add to be safe
 
-    def check_urn(self, urn, url):
-        res = self.urn.find(urn)
-        if res['defaultURL'] == url:
-            log.info('%s has the expected target URL', urn)
-        else:
-            log.warning('Target URL for %s is %s, different from the expected %s', urn, res['defaultURL'], url)
+    def check_urn_target(self, urn: str, url: str, update: bool):
+        """
+        Validate and optionally fix the target URL for a given URN.
 
-    def validate_records(self):
+        Params:
+            - urn: The URN to check
+            - url: The expected target URL for the given URN
+            - update: Whether to update the URN if the target URL differs from the expected value
+        """
+        res = self.urn.find(urn)
+        current_url = res['defaultURL']
+        if current_url == url:
+            log.info('%s has the expected target URL', urn)
+        elif update:
+            res = self.urn.update(urn, current_url, url)
+            log.warning('%s: Target URL updated from %s to %s', urn, current_url, url)
+        else:
+            log.warning('%s: Target URL %s differs from the expected %s. Use --update-urns to update.', urn, current_url, url)
+
+    def validate_records(self, update_urns):
         """
         Validate all records and makes updates as needed
         """
         for row in self.table.rows:
-            self.update_record(row['alma_iz_id'])
+            self.update_record(row['alma_iz_id'], update_urns)
         log.info('Validated %d records', len(self.table.rows))
 
     def get_urn(self, bib, url):
