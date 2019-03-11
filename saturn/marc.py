@@ -136,35 +136,9 @@ class Record(object):
         self.el.insert(idx + 1, new_field.node)
         return new_field
 
-    def get_title(self) -> str:
-
-        out = self.el.find('./datafield[@tag="245"]/subfield[@code="a"]').text
-
-        node = self.el.find('./datafield[@tag="245"]/subfield[@code="b"]')
-        if node is not None:
-            out = out.rstrip(' :') + ' : ' + node.text
-
-        node = self.el.find('./datafield[@tag="245"]/subfield[@code="p"]')
-        if node is not None:
-            out = out.rstrip(' /:.') + '. ' + node.text
-
-        node = self.el.find('./datafield[@tag="245"]/subfield[@code="n"]')
-        if node is not None:
-            out = out.rstrip(' /:.') + '. ' + node.text
-
-        node = self.el.find('./datafield[@tag="245"]/subfield[@code="c"]')
-        if node is not None:
-            out = out.rstrip(' /') + ' / ' + node.text
-
-        out = out.rstrip('.') + '.'
-
-        node = self.el.find('./datafield[@tag="264"]/subfield[@code="c"]')
-        if node is None:
-            node = self.el.find('./datafield[@tag="260"]/subfield[@code="c"]')
-            if node is not None:
-                out += ' ' + node.text
-
-        return out
+    def get_title_statement(self) -> str:
+        field = self.el.find('./datafield[@tag="245"]')
+        return ' '.join([sf.text.strip() for sf in field.findall('./subfield')])
 
     def get_urn(self) -> str:
         for field in self.fields:

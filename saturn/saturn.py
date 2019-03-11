@@ -116,7 +116,7 @@ class Saturn(object):
             row['url'] = self.alma['iz'].get_delivery_url(bib)
 
         if row['title'] == '':
-            row['title'] = bib.marc_record.get_title()
+            row['title'] = bib.marc_record.get_title_statement()
 
         if row['alma_nz_id'] != '':
             # If record exists in NZ, we need to update that record
