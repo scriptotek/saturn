@@ -138,7 +138,7 @@ class Saturn(object):
         if res['defaultURL'] == url:
             log.info('%s has the expected target URL', urn)
         else:
-            log.warning('Target URL for %s is %s, different from the expected %s', res['defaultURL'] , url)
+            log.warning('Target URL for %s is %s, different from the expected %s', urn, res['defaultURL'], url)
 
     def validate_records(self):
         """
