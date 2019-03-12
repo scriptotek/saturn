@@ -4,7 +4,7 @@ import weakref
 from io import BytesIO
 from requests import Session, HTTPError
 from textwrap import dedent
-import questionary
+import questionary  # type: ignore
 
 from .util import get_diff
 from .bib import Bib

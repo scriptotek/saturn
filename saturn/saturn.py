@@ -9,12 +9,16 @@ from requests.exceptions import HTTPError
 import logging
 import logging.config
 import pkg_resources
+from typing import TYPE_CHECKING
 
 from . import __version__
 from .alma import Alma
 from .data import Table
 from .config import config
 from .urn_service import UrnService
+
+if TYPE_CHECKING:
+    from .bib import Bib
 
 LOG_CONFIG_FILE = pkg_resources.resource_filename('saturn', 'logging.yml')
 
@@ -26,7 +30,7 @@ log = logging.getLogger()
 
 class Saturn(object):
 
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict) -> None:
         self.default_data_file = cfg['default_data_file']
         self.table = Table()
         self.urn = UrnService(**cfg['urn'])
@@ -35,7 +39,7 @@ class Saturn(object):
             'nz': Alma(**cfg['alma_nz']),
         }
 
-    def run(self):
+    def run(self) -> None:
         parser = argparse.ArgumentParser(
             prog='saturn',
             description="""Simple Alma Tool for URN management using a CSV file. To register a new record,
@@ -87,18 +91,21 @@ class Saturn(object):
 
         print('Unknown action "%s", try saturn -h' % args.action)
 
-    def add_record(self, mms_id):
+    def add_record(self, mms_id: str) -> None:
         """
         Add a new record to our database and create an URN for it none exist yet.
 
         Params:
             mms_id: Institutional zone MMS ID
         """
-        self.alma['iz'].get_record(mms_id) # Just validate that it exists
+        if self.table.has(mms_id):
+            print('Record already exists in the local database.')
+            return
+        self.alma['iz'].get_record(mms_id)  # Validate that the record exists in Alma
         self.table.add(mms_id)
         log.info('Added %s to data table', mms_id)
 
-    def update_record(self, mms_id, update_urns):
+    def update_record(self, mms_id: str, update_urns: bool) -> None:
         """
         Validate an existing record in our database and create an URN for it none exist yet.
 
@@ -135,7 +142,7 @@ class Saturn(object):
 
         self.table.save()  # Save after each add to be safe
 
-    def check_urn_target(self, urn: str, url: str, update: bool):
+    def check_urn_target(self, urn: str, url: str, update: bool) -> None:
         """
         Validate and optionally fix the target URL for a given URN.
 
@@ -144,17 +151,16 @@ class Saturn(object):
             - url: The expected target URL for the given URN
             - update: Whether to update the URN if the target URL differs from the expected value
         """
-        res = self.urn.find(urn)
-        current_url = res['defaultURL']
+        current_url = self.urn.get_url(urn)
         if current_url == url:
             log.info('%s has the expected target URL', urn)
         elif update:
-            res = self.urn.update(urn, current_url, url)
+            self.urn.update(urn, current_url, url)
             log.warning('%s: Target URL updated from %s to %s', urn, current_url, url)
         else:
             log.warning('%s: Target URL %s differs from the expected %s. Use --update-urns to update.', urn, current_url, url)
 
-    def validate_records(self, update_urns):
+    def validate_records(self, update_urns: bool) -> None:
         """
         Validate all records and makes updates as needed
         """
@@ -162,7 +168,7 @@ class Saturn(object):
             self.update_record(row['alma_iz_id'], update_urns)
         log.info('Validated %d records', len(self.table.rows))
 
-    def get_urn(self, bib, url):
+    def get_urn(self, bib: 'Bib', url: str) -> str:
         """
         Return existing URN or create a new one.
 
@@ -178,7 +184,7 @@ class Saturn(object):
         log.info('Creating URN pointing to %s', url)
         return self.urn.create(url)
 
-    def add_urn_to_marc_record(self, bib, new_urn):
+    def add_urn_to_marc_record(self, bib: 'Bib', new_urn: str) -> None:
         """
         Add URN to Alma MARC record in 024 $2 urn
         """
@@ -192,9 +198,9 @@ class Saturn(object):
         field.add_subfield('a', new_urn)
         field.add_subfield('2', 'urn')
 
-        bib.alma().put_record(bib, show_diff=True)
+        bib.alma.put_record(bib, show_diff=True)
         log.info('Added URN %s to MARC record %s', new_urn, bib.id)
 
 
-def main():
+def main() -> None:
     Saturn(config()).run()

@@ -1,6 +1,15 @@
 import csv
 import os
-from typing import Optional
+from typing import Optional, List, Dict
+from collections import OrderedDict
+
+# Using Dict instead of OrderedDict because the latter will fail with Pytho 3.6
+# See: https://stackoverflow.com/a/43583996/489916
+Rows = List[Dict[str, str]]
+
+
+class RowNotFound(RuntimeError):
+    pass
 
 
 class Table(object):
@@ -15,12 +24,12 @@ class Table(object):
     ]
     filename = None
 
-    def __init__(self):
-        self._rows: list = []
+    def __init__(self) -> None:
+        self._rows: Rows = []
 
-    def open(self, filename: str):
+    def open(self, filename: str) -> 'Table':
         self.filename = filename
-        rows: list = []
+        rows: Rows = []
         if not os.path.exists(filename):
             self._rows = rows
             return self
@@ -33,10 +42,10 @@ class Table(object):
         return self
 
     @property
-    def rows(self) -> list:
+    def rows(self) -> Rows:
         return self._rows
 
-    def save(self, filename: str = None):
+    def save(self, filename: Optional[str] = None) -> None:
         filename = filename or self.filename
         if filename is None:
             raise ValueError('No filename given')
@@ -46,17 +55,23 @@ class Table(object):
             writer.writeheader()
             writer.writerows(self.rows)
 
-    def get(self, mms_id: str) -> Optional[dict]:
+    def has(self, mms_id: str) -> bool:
+        for row in self.rows:
+            if row['alma_iz_id'] == mms_id:
+                return True
+        return False
+
+    def get(self, mms_id: str) -> Dict[str, str]:
         for row in self.rows:
             if row['alma_iz_id'] == mms_id:
                 return row
-        return None
+        raise RowNotFound()
 
-    def add(self, mms_id: str):
-        if self.get(mms_id) is not None:
+    def add(self, mms_id: str) -> None:
+        if self.has(mms_id):
             raise ValueError('MMS ID already exists in DB')
 
-        row: dict = {x: '' for x in self.fieldnames}
+        row: OrderedDict[str, str] = OrderedDict([(x, '') for x in self.fieldnames])
         row['alma_iz_id'] = mms_id
         self.rows.append(row)
         self.save()

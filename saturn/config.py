@@ -1,9 +1,10 @@
 import os
-from dotenv import load_dotenv
+from typing import Dict, Union, Optional
+from dotenv import load_dotenv  # type: ignore
 load_dotenv('.env')
 
 
-def config():
+def config() -> Dict[str, Union[str, Dict[str, Optional[str]]]]:
     return {
         'default_data_file': 'saturn-data.csv',
         'urn': {
