@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 LOG_CONFIG_FILE = pkg_resources.resource_filename('saturn', 'logging.yml')
 
 with open(LOG_CONFIG_FILE) as fp:
-    logging.config.dictConfig(yaml.load(fp))
+    logging.config.dictConfig(yaml.safe_load(fp))
 
 log = logging.getLogger()
 
