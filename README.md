@@ -52,6 +52,8 @@ Saturn will then
 4. Store the newly created URN in our local CSV file, then add it to the Alma Bib
    record (network zone record if present, institution zone otherwise) in a 024
    field having `$2 urn`.
+   Question: Is this acceptable use of the 024 according to the cataloguing standard?
+   A possible alternative would be to use 856 instead.
 
 Note: If the bibliographic record already contains an URN, saturn will not create
 a new one.
@@ -59,3 +61,11 @@ a new one.
 ### Validating records
 
 Run `saturn validate` to validate all records in the local CSV file.
+
+### Adding a record that already has an URN
+
+Run `saturn add --urn {URN} {MMS_ID}`, where `{MMS_ID}` is the instition zone MMS ID
+and `{URN}` is the existing URN.
+
+If the existing URN points to another URL, use `saturn add --urn {URN} --update_urns {MMS_ID}`
+to update the URN target.

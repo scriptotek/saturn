@@ -67,11 +67,13 @@ class Table(object):
                 return row
         raise RowNotFound()
 
-    def add(self, mms_id: str) -> None:
+    def add(self, mms_id: str, store: bool = True) -> OrderedDict:
         if self.has(mms_id):
             raise ValueError('MMS ID already exists in DB')
 
         row: OrderedDict[str, str] = OrderedDict([(x, '') for x in self.fieldnames])
         row['alma_iz_id'] = mms_id
         self.rows.append(row)
-        self.save()
+        if store:
+            self.save()
+        return row
